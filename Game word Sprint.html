@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Sprint Pro - Interactive Game</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #16a085;
+            --danger: #e74c3c;
+            --success: #2ecc71;
+            --light: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* Branding & Logo */
+        .header {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #logo-preview {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 8px;
+            display: none; /* Hidden until upload */
+        }
+
+        .upload-label {
+            font-size: 12px;
+            background: var(--light);
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+        }
+
+        /* Game Controls */
+        .game-bar {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            margin-bottom: 30px;
+            background: #fff;
+            padding: 20px 40px;
+            border-radius: 50px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        #letter-display {
+            width: 80px;
+            height: 80px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            font-weight: bold;
+        }
+
+        .btn-spin {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn-spin:disabled { background: #ccc; }
+
+        #timer-clock {
+            font-size: 32px;
+            font-weight: bold;
+            font-family: monospace;
+            color: var(--primary);
+        }
+
+        /* Table Design */
+        table {
+            width: 100%;
+            max-width: 1100px;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 10px;
+            border: 1px solid #eee;
+            text-align: center;
+        }
+
+        .round-indicator { font-weight: bold; color: var(--accent); }
+
+        /* Input Validation Styles */
+        input[type="text"] {
+            width: 90%;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        input.valid {
+            background-color: #d4edda;
+            border-color: var(--success);
+            color: #155724;
+        }
+
+        input.invalid {
+            background-color: #f8d7da;
+            border-color: var(--danger);
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo-container">
+            <img id="logo-preview" src="#" alt="Logo">
+            <label class="upload-label">
+                Upload Logo
+                <input type="file" id="logo-input" hidden accept="image/*">
+            </label>
+        </div>
+        <div style="text-align: right;">
+            <h1 style="margin:0; color: var(--primary);">WORD SPRINT CHAMPIONSHIP</h1>
+            <p style="margin:0; color: #7f8c8d;">Instant Letter Validation Active</p>
+        </div>
+    </div>
+
+    <div class="game-bar">
+        <div id="letter-display">?</div>
+        <button class="btn-spin" id="spin-btn">SPIN WHEEL & START ROUND</button>
+        <div id="timer-clock">01:00</div>
+    </div>
+
+    <table id="sprint-table">
+        <thead>
+            <tr>
+                <th>Round</th>
+                <th>Ltr</th>
+                <th>Group</th>
+                <th>Country</th>
+                <th>City</th>
+                <th>Person</th>
+                <th>Food</th>
+                <th>Plant</th>
+                <th>Object</th>
+                <th>Animal</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            </tbody>
+    </table>
+
+    <script>
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        let usedLetters = [];
+        let roundCounter = 0;
+        let timer;
+
+        // --- Logo Upload Logic ---
+        const logoInput = document.getElementById('logo-input');
+        const logoPreview = document.getElementById('logo-preview');
+
+        logoInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    logoPreview.src = e.target.result;
+                    logoPreview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // --- Game Logic ---
+        document.getElementById('spin-btn').addEventListener('click', startNewRound);
+
+        function startNewRound() {
+            if (usedLetters.length >= 26) return alert("All letters used!");
+
+            const spinBtn = document.getElementById('spin-btn');
+            const letterBox = document.getElementById('letter-display');
+            spinBtn.disabled = true;
+
+            // Simple "Spinning" Animation
+            let count = 0;
+            const spinAnim = setInterval(() => {
+                letterBox.innerText = alphabet[Math.floor(Math.random() * 26)];
+                count++;
+                if (count > 15) {
+                    clearInterval(spinAnim);
+                    finalizeLetter();
+                }
+            }, 50);
+        }
+
+        function finalizeLetter() {
+            let letter;
+            do {
+                letter = alphabet[Math.floor(Math.random() * 26)];
+            } while (usedLetters.includes(letter));
+
+            usedLetters.push(letter);
+            document.getElementById('letter-display').innerText = letter;
+            
+            roundCounter++;
+            createRoundRows(letter);
+            startCountdown();
+        }
+
+        function createRoundRows(letter) {
+            const tbody = document.getElementById('table-body');
+            
+            for (let g = 1; g <= 4; g++) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="round-indicator">${g === 1 ? 'R' + roundCounter : ''}</td>
+                    <td>${g === 1 ? '<b>' + letter + '</b>' : ''}</td>
+                    <td style="background:#f9f9f9">Group ${g}</td>
+                    ${Array(7).fill(0).map(() => `
+                        <td><input type="text" oninput="validate(this, '${letter}')" placeholder="..."></td>
+                    `).join('')}
+                `;
+                tbody.appendChild(row);
+            }
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        // --- Validation Logic ---
+        function validate(input, correctLetter) {
+            const text = input.value.trim().toUpperCase();
+            if (text === "") {
+                input.className = "";
+            } else if (text.startsWith(correctLetter)) {
+                input.className = "valid";
+            } else {
+                input.className = "invalid";
+            }
+        }
+
+        // --- Timer Logic ---
+        function startCountdown() {
+            let seconds = 60;
+            const display = document.getElementById('timer-clock');
+            
+            clearInterval(timer);
+            timer = setInterval(() => {
+                seconds--;
+                let m = Math.floor(seconds / 60);
+                let s = seconds % 60;
+                display.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                
+                if (seconds <= 10) display.style.color = "var(--danger)";
+                
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    display.innerText = "00:00";
+                    document.getElementById('spin-btn').disabled = false;
+                    alert("ROUND OVER! Stop typing.");
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
